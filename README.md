@@ -1,15 +1,33 @@
 # PLC Polling Communication Test
 
-LS산전 XGB PLC에 시리얼(RS-232C)로 연결하여 **폴링 방식 데이터 읽기**의 가능 여부와 속도를 검증하는 테스트 프로젝트.
+다양한 PLC에 대해 **폴링 방식 데이터 읽기**의 통신 가능 여부와 응답 속도를 검증하는 범용 테스트 프로그램.
 
-## 테스트 환경
+## 지원 범위
 
-| 항목 | 내용 |
-|------|------|
-| PLC | LS산전 XGB DR32H (CPU 내장 시리얼 포트) |
-| 연결 | RS-232C (USB-RS232C 컨버터 경유) |
-| 프로토콜 | LS XGT Cnet Protocol |
-| 언어 | Python 3.11+ |
+| 구분 | 현재 구현 | 확장 예정 |
+|------|-----------|-----------|
+| **프로토콜** | LS XGT Cnet | MC Protocol (미쓰비시/키엔스), MEWTOCOL (파나소닉) |
+| **전송 방식** | RS-232C, TCP/IP | RS-485, 이더넷 (통신모듈 경유) |
+| **연결 대상** | CPU 내장 시리얼 포트 | Cnet/FEnet 통신모듈, 시리얼-이더넷 변환기 |
+
+## 아키텍처
+
+```
+scripts (테스트 실행)
+    ↓
+src/drivers/        (프로토콜 변환: 요청 조립 ↔ 응답 파싱)
+  ├── xgt_protocol  — LS산전
+  ├── mc_protocol   — 미쓰비시/키엔스 (예정)
+  └── mewtocol      — 파나소닉 (예정)
+    ↓
+src/transport/      (바이트 송수신)
+  ├── serial        — RS-232C / RS-485
+  └── tcp           — 이더넷 / 변환기
+    ↓
+PLC
+```
+
+드라이버(프로토콜)와 전송 계층을 추상 인터페이스(`base.py`)로 분리하여, 새로운 PLC 프로토콜이나 전송 방식을 추가해도 테스트 스크립트는 수정 없이 사용 가능.
 
 ## 프로젝트 구조
 
@@ -19,10 +37,10 @@ LS산전 XGB PLC에 시리얼(RS-232C)로 연결하여 **폴링 방식 데이터
 ├── src/
 │   ├── drivers/
 │   │   ├── base.py             # PLCDriver 추상 인터페이스
-│   │   └── xgt_protocol.py     # LS XGT Protocol 드라이버
+│   │   └── xgt_protocol.py     # LS XGT Cnet Protocol 드라이버
 │   ├── transport/
 │   │   ├── base.py             # Transport 추상 인터페이스
-│   │   ├── serial_transport.py # RS-232C 시리얼 전송
+│   │   ├── serial_transport.py # RS-232C / RS-485 시리얼 전송
 │   │   └── tcp_transport.py    # TCP 전송 (이더넷/변환기용)
 │   └── utils.py                # 로깅, 바이트 변환 유틸리티
 │
@@ -33,7 +51,7 @@ LS산전 XGB PLC에 시리얼(RS-232C)로 연결하여 **폴링 방식 데이터
 │   ├── scan_serial_ports.py    # 시리얼 포트 스캔
 │   ├── single_read.py          # 1회 읽기 테스트
 │   ├── polling_test.py         # 반복 폴링 + 소요 시간 측정
-│   ├── multi_device_timing.py  # 순차 읽기 시간 측정 (20대 추정)
+│   ├── multi_device_timing.py  # 순차 읽기 시간 측정 (N대 추정)
 │   └── memory_scan.py          # 메모리 영역 스캔 (사용 중인 주소 탐색)
 │
 └── docs/
@@ -64,9 +82,17 @@ python scripts/scan_serial_ports.py
 ### 2. config.yaml 수정
 
 ```yaml
-serial:
-  port: "COM3"       # ← 실제 포트 번호
-  baudrate: 9600     # ← PLC 설정과 일치해야 함
+plc:
+  protocol: "xgt"          # 프로토콜 선택
+  connection: "serial"     # serial 또는 ethernet
+
+  serial:
+    port: "COM3"           # ← 실제 포트 번호
+    baudrate: 9600         # ← PLC 설정과 일치해야 함
+
+  ethernet:
+    host: "192.168.1.100"  # ← PLC 또는 변환기 IP
+    port: 2004
 ```
 
 ### 3. 1회 읽기 테스트
@@ -95,31 +121,16 @@ python scripts/polling_test.py
 python scripts/multi_device_timing.py
 ```
 
-20회 연속 읽기로 20대 PLC 순차 폴링 시간을 추정.
+N회 연속 읽기로 다수 PLC 순차 폴링 시간을 추정.
 
 ## 성공 기준
 
 | 항목 | 기준 |
 |------|------|
 | 기본 통신 | PLC 디바이스 값이 정상적으로 읽힘 |
-| 데이터 정합성 | 읽은 값이 XG5000 모니터 값과 일치 |
+| 데이터 정합성 | 읽은 값이 PLC 모니터링 소프트웨어 값과 일치 |
 | 안정성 | 60초 이상 연속 폴링 시 통신 에러 없음 |
 | 1회 읽기 속도 | 200ms 이내 (9600bps 기준) |
-| 20대 환산 | 5초 이내 (실시간 폴링 가능 판단) |
-
-## 아키텍처
-
-```
-scripts (테스트 실행)
-    ↓
-drivers/xgt_protocol.py (프로토콜 변환: 요청 조립 ↔ 응답 파싱)
-    ↓
-transport/serial_transport.py (바이트 송수신)
-    ↓
-RS-232C 케이블 → PLC
-```
-
-드라이버와 전송 계층을 추상 인터페이스로 분리하여, 향후 다른 PLC 프로토콜(MC Protocol, MEWTOCOL)이나 다른 전송 방식(TCP/IP)으로 확장 가능.
 
 ## 주의사항
 
@@ -129,7 +140,6 @@ RS-232C 케이블 → PLC
 
 ## 참고 자료
 
-- [LS ELECTRIC 다운로드 센터](https://www.ls-electric.com) — XGT Cnet/FEnet 프로토콜 매뉴얼
 - [pyserial 문서](https://pyserial.readthedocs.io/)
 - 매뉴얼 상세 목록: [docs/REFERENCE_MANUALS.md](docs/REFERENCE_MANUALS.md)
 - 프로젝트 학습 가이드: [docs/LEARNING_GUIDE.md](docs/LEARNING_GUIDE.md)
