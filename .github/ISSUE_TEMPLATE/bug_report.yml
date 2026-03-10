@@ -1,0 +1,55 @@
+name: Bug Report
+description: 버그 리포트
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        버그를 발견해주셔서 감사합니다.
+  - type: dropdown
+    id: component
+    attributes:
+      label: 컴포넌트
+      options:
+        - backend
+        - frontend
+        - shared
+        - infra
+        - docs
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: 버그 설명
+      description: 어떤 문제가 발생했나요?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: 재현 방법
+      description: 버그를 재현하는 단계
+      value: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 기대 동작
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: 실제 동작
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: 로그/스크린샷
+      description: 관련 로그나 스크린샷이 있으면 첨부해주세요.

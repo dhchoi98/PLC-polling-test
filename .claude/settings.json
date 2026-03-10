@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Read",
+      "Edit",
+      "Bash(git *)",
+      "Bash(cd *)",
+      "Bash(ls *)",
+      "Bash(cat *)",
+      "Bash(find *)",
+      "Bash(grep *)",
+      "Bash(python -m pytest *)",
+      "Bash(ruff *)",
+      "Bash(mypy *)",
+      "Bash(alembic *)",
+      "Bash(docker compose *)",
+      "Bash(pip install *)",
+      "Bash(npm *)",
+      "Bash(pnpm *)",
+      "Bash(bun *)"
+    ],
+    "deny": [
+      "Bash(rm -rf /)",
+      "Bash(DROP TABLE *)",
+      "Bash(TRUNCATE *)",
+      "Bash(* --force-delete *)"
+    ]
+  }
+}

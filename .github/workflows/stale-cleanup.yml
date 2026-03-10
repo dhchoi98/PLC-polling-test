@@ -1,0 +1,27 @@
+name: Stale Issue Cleanup
+
+on:
+  schedule:
+    - cron: '0 9 * * 1'  # 매주 월요일 09:00 UTC
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/stale@v9
+        with:
+          stale-issue-message: '30일간 활동이 없습니다. 확인 후 업데이트하거나 닫아주세요.'
+          stale-pr-message: '14일간 활동이 없습니다. 확인 후 업데이트하거나 닫아주세요.'
+          stale-issue-label: 'stale'
+          stale-pr-label: 'stale'
+          days-before-issue-stale: 30
+          days-before-pr-stale: 14
+          days-before-issue-close: -1
+          days-before-pr-close: -1
+          exempt-issue-labels: 'priority:high,blocked'
+          exempt-pr-labels: 'priority:high,blocked'

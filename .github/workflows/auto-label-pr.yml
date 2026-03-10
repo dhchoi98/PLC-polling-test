@@ -1,0 +1,64 @@
+name: Auto Label PR
+
+on:
+  pull_request:
+    types: [opened]
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  label:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Auto label from branch name
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const branch = context.payload.pull_request.head.ref;
+            const labels = [];
+
+            // type label from branch prefix
+            const typeMatch = branch.match(/^(?:dev\/)?(feat|fix|refactor|test|docs|chore|perf|hotfix)\//);
+            if (typeMatch) {
+              const typeMap = {
+                feat: 'enhancement',
+                fix: 'bug',
+                refactor: 'refactor',
+                test: 'test',
+                docs: 'docs',
+                chore: 'chore',
+                perf: 'perf',
+                hotfix: 'bug'
+              };
+              labels.push(typeMap[typeMatch[1]]);
+            }
+
+            // component label from branch name keywords
+            const componentMap = {
+              engine: 'engine',
+              frontend: 'frontend',
+              backend: 'backend',
+              telegram: 'telegram',
+              infra: 'infra',
+              db: 'db',
+              api: 'backend',
+              service: 'backend'
+            };
+            for (const [keyword, label] of Object.entries(componentMap)) {
+              if (branch.includes(keyword)) {
+                labels.push(label);
+                break;
+              }
+            }
+
+            if (labels.length > 0) {
+              const uniqueLabels = [...new Set(labels)];
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.pull_request.number,
+                labels: uniqueLabels
+              });
+            }

@@ -1,0 +1,41 @@
+plc:
+  name: "LS-XGB-TEST"
+  protocol: "xgt"
+
+  # ★ 연결 방식 선택: "serial" 또는 "ethernet"
+  connection: "serial"
+
+  serial:
+    port: "COM3"         # ← 현장에서 확인 후 변경
+    baudrate: 9600       # ← PLC 설정에 맞춰야 함
+    bytesize: 8
+    parity: "none"
+    stopbits: 1
+    timeout: 1.0
+
+  ethernet:
+    host: "192.168.1.100"  # ← PLC 또는 시리얼-이더넷 변환기 IP
+    port: 2004             # ← 포트 번호 (변환기 설정에 따라 다름)
+    timeout: 1.0
+
+  # 읽을 디바이스 목록
+  devices:
+    - name: "counter_test"
+      device: "D"
+      address: 0
+      count: 10
+      type: "word"
+      description: "D0~D9 워드 읽기 테스트"
+
+    - name: "bit_status"
+      device: "M"
+      address: 0
+      count: 16
+      type: "bit"
+      description: "M0~M15 비트 상태 테스트"
+
+# 폴링 테스트 설정
+polling:
+  interval_sec: 1.0    # 폴링 주기 (초)
+  duration_sec: 60     # 테스트 지속 시간 (초)
+  log_file: "polling_results.csv"

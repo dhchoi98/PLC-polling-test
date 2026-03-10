@@ -1,0 +1,69 @@
+name: Auto Project Management
+
+on:
+  issues:
+    types: [opened, closed, reopened]
+  pull_request:
+    types: [opened, closed, reopened]
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  add-to-project:
+    if: github.event.action == 'opened'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Add to project
+        uses: actions/add-to-project@v1.0.2
+        with:
+          # TODO: setup.sh가 이 URL을 자동 치환합니다
+          project-url: https://github.com/users/{{GITHUB_USER}}/projects/1
+          github-token: ${{ secrets.PROJECT_TOKEN }}
+
+  update-status-on-pr-open:
+    if: github.event_name == 'pull_request' && github.event.action == 'opened'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Move linked issues to In Progress
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = context.payload.pull_request.body || '';
+            const issueMatches = body.match(/closes?\s+#(\d+)/gi);
+            if (issueMatches) {
+              for (const match of issueMatches) {
+                const num = match.match(/#(\d+)/)[1];
+                await github.rest.issues.addLabels({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: parseInt(num),
+                  labels: ['in progress']
+                });
+              }
+            }
+
+  close-linked-issues:
+    if: github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Remove in-progress label from linked issues
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = context.payload.pull_request.body || '';
+            const issueMatches = body.match(/closes?\s+#(\d+)/gi);
+            if (issueMatches) {
+              for (const match of issueMatches) {
+                const num = match.match(/#(\d+)/)[1];
+                try {
+                  await github.rest.issues.removeLabel({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: parseInt(num),
+                    name: 'in progress'
+                  });
+                } catch (e) {}
+              }
+            }

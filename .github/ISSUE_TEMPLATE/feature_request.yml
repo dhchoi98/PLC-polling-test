@@ -1,0 +1,33 @@
+name: Feature Request
+description: 새 기능 요청
+labels: ["enhancement"]
+body:
+  - type: dropdown
+    id: component
+    attributes:
+      label: 컴포넌트
+      options:
+        - backend
+        - frontend
+        - shared
+        - infra
+        - docs
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: 기능 설명
+      description: 어떤 기능이 필요한가요?
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: 완료 기준
+      description: 이 기능이 완성되었다고 판단하는 기준
+      value: |
+        - [ ]
+        - [ ]
+    validations:
+      required: true

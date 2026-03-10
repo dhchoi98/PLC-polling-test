@@ -1,0 +1,36 @@
+name: Task
+description: 개발 태스크
+labels: ["task"]
+body:
+  - type: dropdown
+    id: component
+    attributes:
+      label: 컴포넌트
+      options:
+        - backend
+        - frontend
+        - shared
+        - infra
+        - docs
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: 태스크 설명
+    validations:
+      required: true
+  - type: textarea
+    id: checklist
+    attributes:
+      label: 체크리스트
+      value: |
+        - [ ]
+        - [ ]
+    validations:
+      required: true
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: 선행 의존성
+      description: 이 태스크 전에 완료되어야 하는 이슈/태스크
