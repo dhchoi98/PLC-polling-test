@@ -1,6 +1,10 @@
 plc:
   name: "LS-XGB-TEST"
-  protocol: "xgt"
+
+  # ★ 프로토콜 선택:
+  #   "xgt-cnet"  → Cnet 시리얼 ASCII 프로토콜 (RS-232C/485, CPU 내장 포트)
+  #   "xgt-fenet" → FEnet 이더넷 바이너리 프로토콜 (XBL-EMTA 모듈)
+  protocol: "xgt-cnet"
 
   # ★ 연결 방식 선택: "serial" 또는 "ethernet"
   connection: "serial"
@@ -14,9 +18,13 @@ plc:
     timeout: 1.0
 
   ethernet:
-    host: "192.168.1.100"  # ← PLC 또는 시리얼-이더넷 변환기 IP
-    port: 2004             # ← 포트 번호 (변환기 설정에 따라 다름)
-    timeout: 1.0
+    host: "192.168.0.50"   # ← XBL-EMTA IP (XG5000에서 확인)
+    port: 2004             # ← FEnet 기본 포트 2004
+    timeout: 2.0
+
+  # FEnet 모듈 슬롯 번호 (베이스 유닛에서 XBL-EMTA가 꽂힌 슬롯)
+  # XG5000 → I/O 파라미터에서 확인. 보통 0~7번
+  fenet_slot: 3
 
   # 읽을 디바이스 목록
   devices:

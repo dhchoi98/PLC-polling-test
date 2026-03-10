@@ -14,7 +14,7 @@ import struct
 import logging
 from typing import List, Optional
 
-from src.drivers.base import PLCDriver
+from src.drivers.base import PLCDriver, PLCProtocolError, PLCNAKError
 from src.transport.base import Transport
 
 logger = logging.getLogger("plc_test")
@@ -58,12 +58,12 @@ NAK_TROUBLESHOOT = {
 }
 
 
-class XGTProtocolError(Exception):
+class XGTProtocolError(PLCProtocolError):
     """XGT 프로토콜 에러"""
     pass
 
 
-class XGTNAKError(XGTProtocolError):
+class XGTNAKError(PLCNAKError, XGTProtocolError):
     """PLC가 NAK(에러) 응답을 반환"""
     def __init__(self, error_code: int):
         self.error_code = error_code
@@ -72,7 +72,7 @@ class XGTNAKError(XGTProtocolError):
         super().__init__(f"NAK 에러 0x{error_code:04X}: {desc}\n  {tip}")
 
 
-class XGTBCCError(XGTProtocolError):
+class XGTBCCError(PLCProtocolError):
     """BCC 검증 실패"""
     pass
 

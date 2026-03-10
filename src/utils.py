@@ -210,6 +210,7 @@ def _validate_device_config(dev: dict, index: int) -> None:
 def create_transport(config: Dict[str, Any]) -> Transport:
     """config.yaml의 connection 설정에 따라 Transport 생성"""
     conn_type = config["plc"].get("connection", "serial")
+    protocol = config["plc"].get("protocol", "xgt-cnet")
 
     if conn_type == "serial":
         from src.transport.serial_transport import SerialTransport
@@ -223,15 +224,41 @@ def create_transport(config: Dict[str, Any]) -> Transport:
             timeout=cfg["timeout"],
         )
     elif conn_type == "ethernet":
-        from src.transport.tcp_transport import TCPTransport
         cfg = config["plc"]["ethernet"]
-        return TCPTransport(
-            host=cfg["host"],
-            port=cfg["port"],
-            timeout=cfg["timeout"],
-        )
+        if protocol == "xgt-fenet":
+            from src.transport.fenet_transport import FEnetTransport
+            return FEnetTransport(
+                host=cfg["host"],
+                port=cfg.get("port", 2004),
+                timeout=cfg.get("timeout", 2.0),
+            )
+        else:
+            from src.transport.tcp_transport import TCPTransport
+            return TCPTransport(
+                host=cfg["host"],
+                port=cfg["port"],
+                timeout=cfg["timeout"],
+            )
     else:
         raise ValueError(f"지원하지 않는 연결 방식: {conn_type}")
+
+
+def create_driver(config: Dict[str, Any], transport: Transport):
+    """config.yaml의 protocol 설정에 따라 PLC 드라이버 생성"""
+    protocol = config["plc"].get("protocol", "xgt-cnet")
+
+    if protocol in ("xgt", "xgt-cnet"):
+        from src.drivers.xgt_protocol import XGTProtocolDriver
+        return XGTProtocolDriver(transport)
+    elif protocol == "xgt-fenet":
+        from src.drivers.xgt_fenet import XGTFEnetDriver
+        slot = config["plc"].get("fenet_slot", 0)
+        return XGTFEnetDriver(transport, slot=slot)
+    else:
+        raise ValueError(
+            f"지원하지 않는 프로토콜: '{protocol}'\n"
+            f"  → 'xgt-cnet' (시리얼/Cnet) 또는 'xgt-fenet' (이더넷/FEnet)"
+        )
 
 
 def get_connection_info(config: Dict[str, Any]) -> str:
@@ -242,5 +269,7 @@ def get_connection_info(config: Dict[str, Any]) -> str:
         return f"{cfg['port']} @ {cfg['baudrate']}bps (시리얼)"
     elif conn_type == "ethernet":
         cfg = config["plc"]["ethernet"]
-        return f"{cfg['host']}:{cfg['port']} (이더넷)"
+        protocol = config["plc"].get("protocol", "xgt-cnet")
+        proto_label = "FEnet" if protocol == "xgt-fenet" else "이더넷"
+        return f"{cfg['host']}:{cfg['port']} ({proto_label})"
     return conn_type

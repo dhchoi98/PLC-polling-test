@@ -12,8 +12,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.drivers.xgt_protocol import XGTProtocolDriver, XGTNAKError, XGTBCCError
-from src.utils import load_config, setup_logging, create_transport, get_connection_info
+from src.drivers.base import PLCError, PLCNAKError, PLCProtocolError
+from src.utils import load_config, setup_logging, create_transport, create_driver, get_connection_info
 
 
 REPEAT_COUNT = 20  # 20대 PLC 시뮬레이션
@@ -44,7 +44,7 @@ def main():
         print(f"[FAIL] Transport 생성 실패: {e}")
         return
 
-    driver = XGTProtocolDriver(transport)
+    driver = create_driver(config, transport)
 
     # 첫 번째 워드 디바이스 설정 사용
     word_devices = [d for d in config["plc"].get("devices", []) if d["type"] == "word"]
@@ -76,12 +76,12 @@ def main():
         print(f"[FAIL] PLC 응답 없음:\n{e}")
         driver.disconnect()
         return
-    except XGTNAKError as e:
-        print(f"[FAIL] PLC NAK 에러:\n{e}")
+    except PLCNAKError as e:
+        print(f"[FAIL] PLC 에러:\n{e}")
         driver.disconnect()
         return
-    except XGTBCCError as e:
-        print(f"[FAIL] BCC 에러:\n{e}")
+    except PLCProtocolError as e:
+        print(f"[FAIL] 프로토콜 에러:\n{e}")
         driver.disconnect()
         return
     except Exception as e:
@@ -108,12 +108,12 @@ def main():
             except TimeoutError as e:
                 error_count += 1
                 print(f"  {i + 1:2d}회차: [TIMEOUT] {e}")
-            except XGTNAKError as e:
+            except PLCNAKError as e:
                 error_count += 1
-                print(f"  {i + 1:2d}회차: [NAK] {e}")
-            except XGTBCCError as e:
+                print(f"  {i + 1:2d}회차: [PLC ERR] {e}")
+            except PLCProtocolError as e:
                 error_count += 1
-                print(f"  {i + 1:2d}회차: [BCC ERR] {e}")
+                print(f"  {i + 1:2d}회차: [PROTO ERR] {e}")
             except Exception as e:
                 error_count += 1
                 print(f"  {i + 1:2d}회차: [{type(e).__name__}] {e}")

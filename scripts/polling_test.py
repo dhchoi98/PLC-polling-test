@@ -13,8 +13,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.drivers.xgt_protocol import XGTProtocolDriver, XGTNAKError, XGTBCCError
-from src.utils import load_config, setup_logging, create_transport, get_connection_info
+from src.drivers.base import PLCError, PLCNAKError, PLCProtocolError
+from src.utils import load_config, setup_logging, create_transport, create_driver, get_connection_info
 
 
 def main():
@@ -40,7 +40,7 @@ def main():
         print(f"[FAIL] Transport 생성 실패: {e}")
         return
 
-    driver = XGTProtocolDriver(transport)
+    driver = create_driver(config, transport)
 
     polling_cfg = config.get("polling", {})
     interval = polling_cfg.get("interval_sec", 1.0)
@@ -72,12 +72,12 @@ def main():
         print(f"[FAIL] PLC 응답 없음:\n{e}")
         driver.disconnect()
         return
-    except XGTNAKError as e:
-        print(f"[FAIL] PLC NAK 에러:\n{e}")
+    except PLCNAKError as e:
+        print(f"[FAIL] PLC 에러:\n{e}")
         driver.disconnect()
         return
-    except XGTBCCError as e:
-        print(f"[FAIL] BCC 에러:\n{e}")
+    except PLCProtocolError as e:
+        print(f"[FAIL] 프로토콜 에러:\n{e}")
         driver.disconnect()
         return
     except IOError as e:
@@ -132,14 +132,14 @@ def main():
                         error_count += 1
                         consecutive_errors += 1
                         logger.error(f"사이클 {cycle} 타임아웃: {device}{address} ({e})")
-                    except XGTNAKError as e:
+                    except PLCNAKError as e:
                         error_count += 1
                         consecutive_errors += 1
-                        logger.error(f"사이클 {cycle} NAK: {e}")
-                    except XGTBCCError as e:
+                        logger.error(f"사이클 {cycle} PLC 에러: {e}")
+                    except PLCProtocolError as e:
                         error_count += 1
                         consecutive_errors += 1
-                        logger.error(f"사이클 {cycle} BCC 에러: {e}")
+                        logger.error(f"사이클 {cycle} 프로토콜 에러: {e}")
                     except Exception as e:
                         error_count += 1
                         consecutive_errors += 1

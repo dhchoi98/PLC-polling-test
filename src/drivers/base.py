@@ -2,6 +2,21 @@ from abc import ABC, abstractmethod
 from typing import List
 
 
+class PLCError(Exception):
+    """PLC 통신 에러 기본 클래스"""
+    pass
+
+
+class PLCNAKError(PLCError):
+    """PLC가 에러 응답을 반환"""
+    pass
+
+
+class PLCProtocolError(PLCError):
+    """프로토콜 레벨 에러 (프레임 깨짐, 파싱 실패 등)"""
+    pass
+
+
 class PLCDriver(ABC):
     @abstractmethod
     def connect(self) -> None:

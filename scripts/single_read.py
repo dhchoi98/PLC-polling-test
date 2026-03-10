@@ -12,8 +12,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.drivers.xgt_protocol import XGTProtocolDriver, XGTNAKError, XGTBCCError
-from src.utils import load_config, setup_logging, create_transport, get_connection_info
+from src.drivers.base import PLCError, PLCNAKError, PLCProtocolError
+from src.utils import load_config, setup_logging, create_transport, create_driver, get_connection_info
 
 
 def main():
@@ -42,7 +42,7 @@ def main():
         print(f"[FAIL] Transport 생성 실패: {e}")
         return
 
-    driver = XGTProtocolDriver(transport)
+    driver = create_driver(config, transport)
 
     # --- 1단계: 포트 열기 ---
     try:
@@ -63,11 +63,11 @@ def main():
         print(f"[FAIL] PLC 응답 없음:\n{e}")
         driver.disconnect()
         return
-    except XGTBCCError as e:
-        print(f"[FAIL] BCC 검증 실패 (데이터 깨짐):\n{e}")
+    except PLCProtocolError as e:
+        print(f"[FAIL] 프로토콜 에러 (데이터 깨짐):\n{e}")
         driver.disconnect()
         return
-    except XGTNAKError as e:
+    except PLCNAKError as e:
         print(f"[FAIL] PLC가 에러 응답 반환:\n{e}")
         driver.disconnect()
         return
@@ -120,10 +120,10 @@ def main():
 
             except TimeoutError as e:
                 print(f"[FAIL] [{name}] 타임아웃:\n{e}")
-            except XGTNAKError as e:
-                print(f"[FAIL] [{name}] NAK 에러:\n{e}")
-            except XGTBCCError as e:
-                print(f"[FAIL] [{name}] BCC 에러:\n{e}")
+            except PLCNAKError as e:
+                print(f"[FAIL] [{name}] PLC 에러:\n{e}")
+            except PLCProtocolError as e:
+                print(f"[FAIL] [{name}] 프로토콜 에러:\n{e}")
             except Exception as e:
                 print(f"[FAIL] [{name}] {type(e).__name__}: {e}")
                 if args.debug:
