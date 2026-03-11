@@ -35,6 +35,9 @@ docs/**/*.pdf
 polling_results.csv
 *.csv
 
+# Scan logs
+logs/
+
 # Pytest
 .pytest_cache/
 

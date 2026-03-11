@@ -48,7 +48,7 @@ COMPANY_ID = b"LSIS-XGT"
 HEADER_SIZE = 20
 
 # CPU Info
-CPU_XGB = 0xA0
+CPU_XGB = 0xB0
 CPU_XGK = 0xA0
 CPU_XGI = 0xA4
 CPU_XGR = 0xA8
@@ -65,7 +65,7 @@ CMD_WRITE_RES = 0x0059  # 참고용
 
 # Data Types
 DTYPE_INDIVIDUAL = 0x0000   # 개별 읽기 (SS) — 비트 읽기용
-DTYPE_CONTINUOUS = 0x0014   # 연속 읽기 (SB) — 워드 연속 읽기용
+DTYPE_CONTINUOUS = 0x0014   # 연속 읽기 (SB) — 바이트 연속 읽기 (매뉴얼 h1400)
 
 # --- 유효한 디바이스 타입 ---
 VALID_DEVICES = {"P", "M", "K", "F", "T", "C", "L", "D", "S", "Z"}
@@ -80,6 +80,7 @@ FENET_ERROR_CODES = {
     0x0011: "데이터 에러 (존재하지 않는 영역/크기)",
     0x1132: "잘못된 디바이스 메모리",
     0x1232: "데이터 길이 초과",
+    0xFFFF: "일반 에러 (슬롯 번호/디바이스 주소 확인 필요)",
 }
 
 
@@ -119,7 +120,17 @@ def format_device_address(device: str, address: int, data_type: str = "W") -> st
     if address < 0:
         raise ValueError(f"주소는 0 이상이어야 합니다: {address}")
 
-    return f"%{device}{data_type}{address:05d}"
+    return f"%{device}{data_type}{address}"
+
+
+def calculate_bcc(header_bytes: bytes) -> int:
+    """
+    FEnet 헤더 BCC(체크섬) 계산
+
+    매뉴얼: "Application Header의 Byte Sum"
+    헤더의 0~18바이트(BCC 자리 제외)를 모두 더한 값의 하위 1바이트.
+    """
+    return sum(header_bytes[:19]) & 0xFF
 
 
 def build_fenet_header(
@@ -135,20 +146,24 @@ def build_fenet_header(
         data_length: 데이터 영역 길이
         invoke_id: 요청/응답 매칭용 ID (0~65535)
         slot: FEnet 모듈 슬롯 번호 (보통 0)
-        cpu_info: CPU 타입 (0xA0 = XGB)
+        cpu_info: CPU 타입 (0xB0 = XGB MK)
     """
-    return struct.pack(
+    # BCC 자리를 0x00으로 두고 먼저 조립
+    header = struct.pack(
         "<8s H H B B H H B B",
-        COMPANY_ID,         # CompanyID (8)
-        0x0000,             # Reserved (2)
-        0x0000,             # PLC Info (2)
+        COMPANY_ID,         # CompanyID (8) + NULL NULL (2) = 10 bytes
+        0x0000,             # PLC Info (2): client→server = don't care
+        0x0000,             # (padding for struct alignment)
         cpu_info,           # CPU Info (1)
         SOURCE_PC,          # Source (1): PC → PLC
         invoke_id,          # Invoke ID (2)
         data_length,        # Length (2)
         slot,               # FEnet Position (1)
-        0x00,               # Reserved (1)
+        0x00,               # BCC placeholder (1)
     )
+    # BCC 계산 후 마지막 바이트 교체
+    bcc = calculate_bcc(header)
+    return header[:19] + struct.pack("B", bcc)
 
 
 def build_read_request(
@@ -162,34 +177,43 @@ def build_read_request(
     """
     FEnet 연속 읽기(SB) 요청 프레임 조립
 
+    매뉴얼 규격:
+    - 연속 읽기(h1400)는 바이트 타입 주소만 허용 (%DB, %MB 등)
+    - 워드 주소 N → 바이트 주소 N*2 로 변환
+    - 데이터 개수도 바이트 단위
+
     Args:
         device: 디바이스 타입 ("D", "M" 등)
-        address: 시작 주소
+        address: 시작 주소 (워드 단위)
         count: 읽을 워드 수
         invoke_id: 요청/응답 매칭 ID
         slot: FEnet 모듈 슬롯 번호
-        data_type: "W"=Word, "D"=DWord 등 ("X" 비트는 build_bit_read_request 사용)
+        data_type: "W"=Word (내부에서 바이트 주소로 변환)
     """
     if count < 1:
         raise ValueError(f"읽기 개수는 1 이상이어야 합니다: {count}")
     if data_type.upper() == "X":
         raise ValueError("Bit(X) 연속 읽기는 지원되지 않습니다. build_bit_read_request를 사용하세요.")
 
-    var_name = format_device_address(device, address, data_type)
+    # 연속 읽기는 바이트 주소 사용 (매뉴얼 5.2.4 / 5.2.6)
+    # 워드 주소 → 바이트 주소 변환: addr * 2
+    byte_address = address * 2
+    var_name = format_device_address(device, byte_address, "B")
     var_name_bytes = var_name.encode("ascii")
+    byte_count = count * 2  # 워드 수 → 바이트 수
 
     # 데이터 영역 조립
     data = struct.pack(
         "<H H H H",
         CMD_READ_REQ,       # Command (2)
-        DTYPE_CONTINUOUS,    # Data Type (2): 연속 읽기
+        DTYPE_CONTINUOUS,    # Data Type (2): 연속 읽기 h1400
         0x0000,              # Reserved (2)
         0x0001,              # Block Count (2): 1블록
     )
-    # 블록 데이터: 변수명 길이(2) + 변수명 + 읽기 개수(2)
+    # 블록 데이터: 변수명 길이(2) + 변수명 + 읽기 바이트 수(2)
     data += struct.pack("<H", len(var_name_bytes))
     data += var_name_bytes
-    data += struct.pack("<H", count * 2)  # 바이트 수 (워드 = 2바이트)
+    data += struct.pack("<H", byte_count)
 
     header = build_fenet_header(len(data), invoke_id, slot)
     return header + data
@@ -309,7 +333,8 @@ def parse_read_response(
         )
 
     # 데이터 영역 파싱 (offset 20부터)
-    if len(data) < HEADER_SIZE + 10:
+    # 에러 응답은 Command(2)+DataType(2)+Reserved(2)+ErrorInfo(2) = 8바이트만 올 수 있음
+    if len(data) < HEADER_SIZE + 8:
         hex_str = " ".join(f"{b:02X}" for b in data)
         raise FEnetProtocolError(
             f"응답 데이터가 너무 짧습니다: {len(data)} bytes\n"
@@ -317,8 +342,8 @@ def parse_read_response(
         )
 
     offset = HEADER_SIZE
-    command, data_type, reserved, error_info, block_count = struct.unpack_from(
-        "<H H H H H", data, offset
+    command, data_type, reserved, error_info = struct.unpack_from(
+        "<H H H H", data, offset
     )
 
     # 커맨드 확인
@@ -331,6 +356,16 @@ def parse_read_response(
     # 에러 확인
     if error_info != 0x0000:
         raise FEnetNAKError(error_info)
+
+    # 정상 응답은 BlockCount(2)가 추가로 있어야 함
+    if len(data) < HEADER_SIZE + 10:
+        hex_str = " ".join(f"{b:02X}" for b in data)
+        raise FEnetProtocolError(
+            f"정상 응답인데 BlockCount가 없습니다: {len(data)} bytes\n"
+            f"  전체: {hex_str}"
+        )
+
+    block_count = struct.unpack_from("<H", data, offset + 8)[0]
 
     # 블록 데이터 파싱
     offset += 10  # Command(2) + DataType(2) + Reserved(2) + ErrorInfo(2) + BlockCount(2)

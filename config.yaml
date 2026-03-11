@@ -4,10 +4,10 @@ plc:
   # ★ 프로토콜 선택:
   #   "xgt-cnet"  → Cnet 시리얼 ASCII 프로토콜 (RS-232C/485, CPU 내장 포트)
   #   "xgt-fenet" → FEnet 이더넷 바이너리 프로토콜 (XBL-EMTA 모듈)
-  protocol: "xgt-cnet"
+  protocol: "xgt-fenet"
 
   # ★ 연결 방식 선택: "serial" 또는 "ethernet"
-  connection: "serial"
+  connection: "ethernet"
 
   serial:
     port: "COM3"         # ← 현장에서 확인 후 변경
@@ -18,29 +18,22 @@ plc:
     timeout: 1.0
 
   ethernet:
-    host: "192.168.0.50"   # ← XBL-EMTA IP (XG5000에서 확인)
+    host: "192.168.1.2"    # ← XBL-EMTA IP (XG5000에서 확인)
     port: 2004             # ← FEnet 기본 포트 2004
     timeout: 2.0
 
   # FEnet 모듈 슬롯 번호 (베이스 유닛에서 XBL-EMTA가 꽂힌 슬롯)
   # XG5000 → I/O 파라미터에서 확인. 보통 0~7번
-  fenet_slot: 3
+  fenet_slot: 0
 
   # 읽을 디바이스 목록
   devices:
-    - name: "counter_test"
+    - name: "test_data"
       device: "D"
-      address: 0
-      count: 10
+      address: 5000
+      count: 7
       type: "word"
-      description: "D0~D9 워드 읽기 테스트"
-
-    - name: "bit_status"
-      device: "M"
-      address: 0
-      count: 16
-      type: "bit"
-      description: "M0~M15 비트 상태 테스트"
+      description: "D5000~D5006 워드 읽기 테스트"
 
 # 폴링 테스트 설정
 polling:

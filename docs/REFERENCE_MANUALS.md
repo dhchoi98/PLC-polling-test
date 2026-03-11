@@ -18,7 +18,7 @@ PDF 파일은 용량 문제로 GitHub에 포함하지 않음.
 
 ### 다운로드 센터
 
-- https://www.ls-electric.com → 고객지원 → 다운로드 센터
+- https://sol.ls-electric.com/kr/ko/main
 - 검색 키워드: "XGB Cnet", "XGB FEnet", "XGT 프로토콜"
 
 ### 주로 참고한 부분
